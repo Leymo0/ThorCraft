@@ -118,7 +118,8 @@ UI work without Minecraft: `node mod/panel-mock-server.js mod/src/main/resources
 ## 5. Themes
 
 More → Theme (9 to pick from):
-- **Night** — default: black background with dark-grey panels and orange.
+- **Minecraft** is the default.
+- **Night** — black background with dark-grey panels and orange.
 - **OLED Black** — truly black everywhere (pixels off saves battery), hairline outlines, white accents.
 - **Minecraft** — options-screen dirt background, grey bevelled inventory panels, stone buttons, sunken slots,
   purple tooltip boxes.

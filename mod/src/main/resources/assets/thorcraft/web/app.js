@@ -78,7 +78,7 @@ const DEFAULT_QUICK = ['/spawn', '/home', '/rtp', '/pokeheal'];
 const S = {
   st: null,
   tab: store.get('tab', 'home') === 'map' ? 'home' : store.get('tab', 'home'),
-  settings: Object.assign({ zoom: 1, auto: true, haptics: true, hideFillers: true, menuInv: true, menuPreview: true, padLayout: 'nintendo', theme: 'night' }, store.get('settings', {})),
+  settings: Object.assign({ zoom: 1, auto: true, haptics: true, hideFillers: true, menuInv: true, menuPreview: true, padLayout: 'nintendo', theme: 'minecraft' }, store.get('settings', {})),
   pins: store.get('pins', DEFAULT_PINS),
   quick: store.get('quick', DEFAULT_QUICK),
   chat: [],
@@ -105,7 +105,7 @@ const THEMES = [
   { id: 'gba', name: 'Game Boy Advance', c: ['#4a3fa8', '#f8f8f8', '#e83838', '#404050'] },
   { id: 'dp', name: 'Diamond & Pearl', c: ['#33475c', '#f8f8f8', '#e04040', '#3868a8'] },
 ];
-function applyTheme() { document.documentElement.dataset.theme = S.settings.theme || 'night'; }
+function applyTheme() { document.documentElement.dataset.theme = S.settings.theme || 'minecraft'; }
 applyTheme();
 function applyZoom() { document.documentElement.style.fontSize = (16 * S.settings.zoom) + 'px'; }
 applyZoom();
