@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "thorcraft",
+  "version": "${version}",
+  "name": "ThorCraft",
+  "description": "Dual-screen support for the AYN Thor. Menus, inventories, server chest GUIs, chat, a minimap and Cobblemon battles move to the bottom touch screen, with ABXY battle controls.",
+  "authors": ["Leymo"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.leymo.thorcraft.ThorCraft"]
+  },
+  "mixins": ["thorcraft.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "cobblemon": "*"
+  }
+}
