@@ -41,6 +41,8 @@ public final class GameAssets {
                 if (res.isEmpty()) return null;
                 try (InputStream in = res.get().getInputStream()) {
                     return in.readAllBytes();
+                } catch (java.io.IOException e) {
+                    return null;
                 }
             }).get(2, TimeUnit.SECONDS);
         } catch (Exception ignored) {
