@@ -29,7 +29,13 @@ ThorCraft/
 7. Fan on Smart/Max in the Thor's quick settings for long sessions.
 8. Drop `thorcraft-0.1.0.jar` into the instance's `mods` folder (Zalith: version → Manage → Mods).
 
-## 2. Build
+## 2. Download (easiest)
+
+Every push builds both files automatically. Grab the newest from the repo's **Releases** page:
+- `ThorCraft-Panel.apk` → install on the Thor
+- `thorcraft-*.jar` → put in your Cobbleverse **mods** folder
+
+## 2b. Build it yourself
 
 **Mod** (PC, JDK 21):
 ```
