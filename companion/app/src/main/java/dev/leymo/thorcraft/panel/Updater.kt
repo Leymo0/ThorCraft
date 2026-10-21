@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.view.Display
 import androidx.documentfile.provider.DocumentFile
@@ -108,12 +109,47 @@ object Updater {
     /** One launcher profile, e.g. "COBBLEVERSE 1.7.42", with its mods folder and the ThorCraft build in it. */
     data class Profile(val name: String, val mods: DocumentFile?, val dir: DocumentFile, val installedBuild: Int?)
 
-    /** Finds the "versions" folder whether you picked .minecraft, its parent, or versions itself. */
+    /**
+     * Finds the "versions" folder whether you picked versions itself, .minecraft, a custom game folder,
+     * or Zalith's own folder (android_data → files → .minecraft → versions).
+     */
     private fun versionsDir(root: DocumentFile): DocumentFile? {
         if (root.name == "versions") return root
-        root.findFile("versions")?.let { return it }
-        root.findFile(".minecraft")?.findFile("versions")?.let { return it }
+        val paths = listOf(
+            listOf("versions"), listOf(".minecraft", "versions"), listOf("files", ".minecraft", "versions"),
+            listOf("android_data", "files", ".minecraft", "versions")
+        )
+        for (path in paths) {
+            var d: DocumentFile? = root
+            for (part in path) d = d?.findFile(part)
+            if (d != null && d.isDirectory) return d
+        }
         return null
+    }
+
+    // ------------------------------------------------------------------ Zalith's own folder (one-time permission)
+
+    /**
+     * Zalith Launcher shares its app folder (Android/data/…, where profiles live) through Android's file picker.
+     * This opens the picker already on that folder; you tap "Use this folder" → "Allow" once.
+     */
+    fun connectZalithIntent(ctx: Context): Intent {
+        val pkg = installedLauncher(ctx)?.first?.takeIf { it.startsWith("com.movtery.zalithlauncher") }
+            ?: "com.movtery.zalithlauncher.v2"
+        val start = DocumentsContract.buildDocumentUri("$pkg.document.provider", "$pkg/android_data")
+        return Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            .putExtra(DocumentsContract.EXTRA_INITIAL_URI, start)
+            .addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+            )
+    }
+
+    /** True if the saved folder permission still works. */
+    fun folderConnected(ctx: Context): Boolean {
+        val uri = Prefs.gameFolder(ctx) ?: return false
+        val granted = ctx.contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
+        return granted && (DocumentFile.fromTreeUri(ctx, uri)?.canRead() == true)
     }
 
     fun profiles(ctx: Context): List<Profile> {

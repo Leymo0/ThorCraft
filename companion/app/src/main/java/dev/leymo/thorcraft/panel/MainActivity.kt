@@ -49,6 +49,8 @@ class MainActivity : Activity() {
     private lateinit var appInfo: TextView
     private lateinit var appBtn: Button
     private lateinit var portField: EditText
+    private lateinit var setupList: LinearLayout
+    private lateinit var setupTitle: TextView
 
     @Volatile private var latest: Updater.Release? = null
     @Volatile private var profiles: List<Updater.Profile> = emptyList()
@@ -72,6 +74,14 @@ class MainActivity : Activity() {
         }
         root.addView(progress)
 
+        // ---------------- Setup (one-time)
+        root.addView(card("Setup").apply {
+            setupTitle = text("", 14f, "#FFFFFF")
+            addView(setupTitle)
+            setupList = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL }
+            addView(setupList)
+        })
+
         // ---------------- Play
         root.addView(card("Play").apply {
             playInfo = text("", 14f, MUTED)
@@ -85,15 +95,11 @@ class MainActivity : Activity() {
             addView(modInfo)
             folderInfo = text("", 13f, MUTED)
             addView(folderInfo)
-            addView(button("Choose game folder", "#1F222A") { pickFolder() })
             profileList = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL }
             addView(profileList)
             installBtn = button("Install mod", GREEN) { installMod() }
             addView(installBtn)
-            addView(text(
-                "Zalith keeps its files in Android/data by default, which Android doesn't let other apps open. " +
-                    "To install straight into a profile, set a custom game folder in Zalith's settings (e.g. Internal storage/ZalithLauncher), " +
-                    "then choose that folder here. Otherwise the JAR is saved to Downloads/ThorCraft.", 12f, MUTED))
+            addView(button("Use a different game folder", "#1F222A") { pickFolder(zalith = false) })
         })
 
         // ---------------- Bottom-screen panel
@@ -156,11 +162,18 @@ class MainActivity : Activity() {
         startForegroundService(Intent(this, PanelService::class.java))
     }
 
-    private fun pickFolder() {
-        val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
+    /** zalith = open the picker on Zalith's own folder (profiles live there); otherwise a normal folder picker. */
+    private fun pickFolder(zalith: Boolean = true) {
+        val i = if (zalith) Updater.connectZalithIntent(this)
+        else Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
             Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
         )
-        startActivityForResult(i, REQ_FOLDER)
+        if (zalith) say("Tap “Use this folder”, then “Allow”.")
+        try {
+            startActivityForResult(i, REQ_FOLDER)
+        } catch (e: Exception) {
+            say("⚠ Couldn't open the folder picker: ${e.message}")
+        }
     }
 
     @Deprecated("Activity result API without AndroidX")
@@ -220,6 +233,7 @@ class MainActivity : Activity() {
     // ------------------------------------------------------------------ refresh
 
     private fun refreshLocal() {
+        renderSetup()
         val launcher = Updater.installedLauncher(this)
         playInfo.text = if (launcher != null) "Launcher: ${launcher.second} ✓" else "No Minecraft launcher found — install Zalith Launcher 2."
         val overlay = if (Settings.canDrawOverlays(this)) "✓ allowed" else "✗ not allowed yet"
@@ -245,7 +259,7 @@ class MainActivity : Activity() {
         }
 
         val folder = Prefs.gameFolder(this)?.let { DocumentFile.fromTreeUri(this, it)?.name }
-        folderInfo.text = if (folder != null) "Game folder: $folder" else "No game folder chosen — the JAR will go to Downloads/ThorCraft."
+        folderInfo.text = if (folder != null) "Game folder: $folder" else "Not connected to Zalith yet (Setup step 3) — the JAR will go to Downloads/ThorCraft."
 
         profileList.removeAllViews()
         val chosen = selectedProfile()
@@ -279,6 +293,39 @@ class MainActivity : Activity() {
         else "This app: build $mine ✓ up to date"
         appBtn.visibility = if (r != null && r.build > mine) View.VISIBLE else View.GONE
         refreshLocal()
+    }
+
+    private fun renderSetup() {
+        setupList.removeAllViews()
+        val launcher = Updater.installedLauncher(this)
+        val overlay = Settings.canDrawOverlays(this)
+        val folder = Updater.folderConnected(this)
+        val updates = packageManager.canRequestPackageInstalls()
+        val steps = listOf(
+            Triple(launcher != null, "1. Minecraft launcher",
+                if (launcher != null) "${launcher.second} found" else "Install Zalith Launcher 2 first"),
+            Triple(overlay, "2. Bottom-screen panel", if (overlay) "Allowed" else "Let ThorCraft draw on the bottom screen"),
+            Triple(folder, "3. Connect to Zalith", if (folder) "Connected — mods install straight into your profiles"
+                else "One tap so ThorCraft can install the mod into your profiles"),
+            Triple(updates, "4. App updates", if (updates) "Allowed" else "Let ThorCraft update itself"),
+        )
+        val done = steps.count { it.first }
+        setupTitle.text = if (done == steps.size) "✓ All set" else "$done of ${steps.size} done"
+        steps.forEachIndexed { i, (ok, title, sub) ->
+            if (ok) {
+                setupList.addView(text("✓  $title — $sub", 14f, "#3DDC84"))
+            } else {
+                setupList.addView(button("$title\n$sub", "#2A1A10") {
+                    when (i) {
+                        0 -> Updater.openPage(this, "https://github.com/ZalithLauncher/ZalithLauncher2/releases")
+                        1 -> startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+                        2 -> pickFolder(zalith = true)
+                        3 -> startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                    }
+                }.apply { gravity = Gravity.START or Gravity.CENTER_VERTICAL; textSize = 14f })
+            }
+        }
+        setupList.addView(text("Then in game: bottom screen → More → Controller setup (press A B X Y L R once).", 12f, MUTED))
     }
 
     // ------------------------------------------------------------------ ui helpers
