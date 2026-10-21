@@ -96,6 +96,7 @@ function state() {
   const sc = (o) => Object.assign({ cls: 'x', aspect: 16 / 9, typing: false }, o);
   switch (scenario) {
     case 'chest': base.screen = sc({ kind: 'container', title: [{ t: 'Chest' }], syncId: 3, bgW: 176, bgH: 166, rows: 3, slots: chestSlots(), cursor: null, menu: false }); break;
+    case 'painted': base.screen = sc({ kind: 'container', title: [{ t: '\uE001\uE002 Shop' }], syncId: 9, bgW: 176, bgH: 166, rows: 3, slots: menuSlots(), cursor: null, menu: true, painted: true }); break;
     case 'menu': base.screen = sc({ kind: 'container', title: [{ t: '✦ ', c: '#FFAA00' }, { t: 'Server Menu', c: '#FFAA00', b: 1 }], syncId: 4, bgW: 176, bgH: 166, rows: 3, slots: menuSlots(), cursor: null, menu: true }); break;
     case 'mirror': base.screen = sc({ kind: 'mirror', title: [{ t: 'PC' }], widgets: [{ i: 0, label: 'Done', a: true, type: 'button' }, { i: 1, label: 'Box 1', a: true, type: 'button' }, { i: 2, label: 'Search', a: true, type: 'text', value: '' }], typing: true }); break;
     default:

@@ -75,6 +75,9 @@ UI work without Minecraft: `node mod/panel-mock-server.js mod/src/main/resources
   and tapping a menu slot places it straight away.
 - **Top screen stays clean:** while the panel is connected, inventories/chests/server menus are drawn only on
   the bottom screen (toggle in More, or with the "Toggle menus on top screen" key).
+- **Server menus with custom art:** when a server's resource pack paints a background over a chest menu
+  (special font / private-use glyphs in the title), it opens as the live picture automatically so it looks
+  exactly like the top screen. Tap **Slots** to switch to tappable slots (toggle in More).
 - **Everything else** (Cobblemon PC, Pokédex, mod settings, the title screen…) shows as a **live picture you
   can touch**, with scroll buttons, a keyboard bar for text boxes, and a list of the screen's buttons.
 

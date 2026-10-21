@@ -78,7 +78,7 @@ const DEFAULT_QUICK = ['/spawn', '/home', '/rtp', '/pokeheal'];
 const S = {
   st: null,
   tab: store.get('tab', 'home') === 'map' ? 'home' : store.get('tab', 'home'),
-  settings: Object.assign({ zoom: 1, auto: true, haptics: true, hideFillers: true, menuInv: true, menuPreview: true, padLayout: 'nintendo', theme: 'minecraft' }, store.get('settings', {})),
+  settings: Object.assign({ zoom: 1, auto: true, haptics: true, hideFillers: true, menuInv: true, menuPreview: true, padLayout: 'nintendo', theme: 'minecraft', autoPicture: true }, store.get('settings', {})),
   pins: store.get('pins', DEFAULT_PINS),
   quick: store.get('quick', DEFAULT_QUICK),
   chat: [],
@@ -326,8 +326,13 @@ function slotHTML(it, attrs = '', cls = '') {
 }
 
 // ---------------- CONTAINER (inventories, chests, server menus, modded machines)
+function showAsPicture(sc) {
+  const key = sc.cls + ':' + sc.syncId;
+  if (S.viewChoice && S.viewChoice.key === key) return S.viewChoice.picture;   // you switched by hand for this menu
+  return !!sc.painted && S.settings.autoPicture;
+}
 VIEWS.container = (main, st) => {
-  if (S.forceMirror) return VIEWS.mirror(main, st);
+  if (showAsPicture(st.screen)) return VIEWS.mirror(main, st);
   const sc = st.screen;
   const menu = sc.menu;
   const container = sc.slots.filter(s => !s.p);
@@ -470,7 +475,7 @@ VIEWS.mirror = (main, st) => {
       <button class="btn small grow" data-tap="scroll:1">▲ Scroll</button>
       <button class="btn small grow" data-tap="scroll:-1">▼ Scroll</button>
       <button class="btn small grow ${mirrorCrop() < 1 ? 'on' : ''}" data-tap="mzoom:${mirrorCrop() < 1 ? 1 : 0.55}">${mirrorCrop() < 1 ? 'Zoom out' : 'Zoom in'}</button>
-      ${S.forceMirror ? '<button class="btn small grow" data-tap="mirror:off">Slots</button>' : ''}
+      ${sc.kind === 'container' ? '<button class="btn small grow" data-tap="mirror:off">Slots</button>' : ''}
       ${widgets.length ? `<button class="btn small grow ${S.showWidgets ? 'on' : ''}" data-tap="widgets">Buttons (${widgets.length})</button>` : ''}
     </div>
     ${typing ? typeBar() : ''}
@@ -864,6 +869,7 @@ VIEWS.settings = (main, st) => {
     <div class="themes">${THEMES.map(t => `<button class="theme ${S.settings.theme === t.id ? 'on' : ''}" data-tap="theme:${t.id}"><span class="sw4">${t.c.map(col => `<i style="background:${col}"></i>`).join('')}</span>${t.name}</button>`).join('')}</div>
     <div class="h">Panel</div>
     ${sw(S.settings.auto, 'set:auto', 'Follow the game', st.cobblemon ? 'Jump to battles, chests and menus automatically' : 'Jump to chests and menus automatically')}
+    ${sw(S.settings.autoPicture, 'set:autoPicture', 'Server menus with custom art: show as picture', 'Menus a server resource pack paints over open as the real screen (tap Slots to switch)')}
     ${sw(S.settings.menuPreview, 'set:menuPreview', 'Server menus: preview first', 'First tap shows the item, second tap clicks it')}
     ${sw(S.settings.hideFillers, 'set:hideFillers', 'Dim glass-pane fillers in server menus')}
     ${sw(S.settings.haptics, 'set:haptics', 'Vibration', st.cobblemon ? 'Damage, battle start, shiny alerts' : 'When you take damage')}
@@ -908,13 +914,13 @@ function act(a, hold) {
       store.set('pins', S.pins); buzz(25); break;
     }
     case 'unpin': S.pins = S.pins.filter(p => p.id !== arg); store.set('pins', S.pins); buzz(25); break;
-    case 'screen': if (arg === 'close') cmd({ t: 'close' }); S.forceMirror = false; S.picked = null; S.mirrorZoom = 0; break;
+    case 'screen': if (arg === 'close') cmd({ t: 'close' }); S.viewChoice = null; S.picked = null; S.mirrorZoom = 0; break;
     case 'slot': slotTap(+arg, false); break;
     case 'slothold': slotTap(+arg, true); break;
     case 'clickslot': { const [id, btn, ac] = arg.split(':'); cmd({ t: 'click', slot: +id, button: +btn, act: ac }); buzz(15); break; }
     case 'mode': S.slotMode = arg; break;
     case 'dropheld': cmd({ t: 'click', slot: -999, button: 0, act: 'PICKUP' }); break;
-    case 'mirror': S.forceMirror = arg === 'on'; $('#main')._html = null; break;
+    case 'mirror': { const sc = st.screen; S.viewChoice = { key: sc.cls + ':' + sc.syncId, picture: arg === 'on' }; $('#main')._html = null; $('#main').dataset.layout = ''; break; }
     case 'widgets': S.showWidgets = !S.showWidgets; break;
     case 'widget': cmd({ t: 'widget', i: +arg }); buzz(12); break;
     case 'scroll': cmd({ t: 'touch', kind: 'scroll', x: 0.5, y: 0.5, amount: +arg }); break;

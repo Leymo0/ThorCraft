@@ -142,6 +142,24 @@ public final class ScreenBridge {
             menu = fillers >= 2 || (!vanillaTitle && onServer && named > 0) || (named * 2 >= containerSlots && onServer);
         }
         o.addProperty("menu", menu);
+        // Server resource packs often paint a custom background over the menu using a special font
+        // or private-use glyphs in the title. Those menus only look right as a picture.
+        o.addProperty("painted", isPainted(hs.getTitle()));
+    }
+
+    /** True if the title uses a non-default font or private-use / negative-space glyphs (resource-pack GUI art). */
+    public static boolean isPainted(Text title) {
+        if (title == null) return false;
+        boolean[] painted = {false};
+        title.visit((style, str) -> {
+            net.minecraft.util.Identifier font = style.getFont();
+            if (font != null && !font.equals(net.minecraft.text.Style.DEFAULT_FONT_ID)) painted[0] = true;
+            str.codePoints().forEach(cp -> {
+                if ((cp >= 0xE000 && cp <= 0xF8FF) || cp >= 0xF0000) painted[0] = true;
+            });
+            return painted[0] ? java.util.Optional.of(Boolean.TRUE) : java.util.Optional.empty();
+        }, net.minecraft.text.Style.EMPTY);
+        return painted[0];
     }
 
     private static boolean acceptsTyping(Screen sc) {
