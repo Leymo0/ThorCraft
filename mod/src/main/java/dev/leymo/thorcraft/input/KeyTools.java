@@ -37,6 +37,15 @@ public final class KeyTools {
         return null;
     }
 
+    /** Keybinding currently bound to a key, e.g. "key.keyboard.c". */
+    public static KeyBinding boundTo(String translationKey) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        for (KeyBinding k : mc.options.allKeys) {
+            if (((dev.leymo.thorcraft.mixin.KeyBindingAccessor) k).thorcraft$getBoundKey().getTranslationKey().equals(translationKey)) return k;
+        }
+        return null;
+    }
+
     public static boolean tap(KeyBinding k) {
         if (k == null) return false;
         KeyBindingAccessor a = (KeyBindingAccessor) k;

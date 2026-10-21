@@ -60,10 +60,59 @@ public final class CobbleBridge {
         return R.get(client(), "storage");
     }
 
+    static String partyPath = "not found yet";
+    private static long lastSearch;
+    private static List<?> cachedFound;
+
     public static List<?> partySlots() {
-        Object party = R.get(storage(), "myParty");
-        Object slots = R.get(party, "slots");
-        return R.list(slots);
+        // 1) the expected route: CobblemonClient.storage.myParty.slots
+        Object party = R.get(storage(), "myParty", "party", "clientParty");
+        List<?> slots = R.list(R.get(party, "slots"));
+        if (hasPokemon(slots)) {
+            partyPath = "storage.myParty.slots";
+            return slots;
+        }
+        // 2) search: any "Party" object reachable from CobblemonClient, holding a list of Pokémon
+        long now = System.currentTimeMillis();
+        if (now - lastSearch < 2000) return cachedFound != null ? cachedFound : slots;
+        lastSearch = now;
+        List<?> found = cachedFound = searchParty(client(), 0, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
+        if (found != null) return found;
+        return slots;
+    }
+
+    private static boolean hasPokemon(List<?> l) {
+        if (l == null || l.isEmpty()) return false;
+        for (Object o : l) if (o != null && o.getClass().getSimpleName().equals("Pokemon")) return true;
+        return false;
+    }
+
+    private static List<?> searchParty(Object o, int depth, java.util.Set<Object> seen) {
+        if (o == null || depth > 4 || !seen.add(o)) return null;
+        if (!o.getClass().getName().startsWith("com.cobblemon")) return null;
+        for (Class<?> k = o.getClass(); k != null && k != Object.class; k = k.getSuperclass()) {
+            for (java.lang.reflect.Field f : k.getDeclaredFields()) {
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) || f.getType().isPrimitive()) continue;
+                Object v;
+                try {
+                    f.setAccessible(true);
+                    v = f.get(o);
+                } catch (Throwable t) {
+                    continue;
+                }
+                if (v == null) continue;
+                // the list itself
+                if (v instanceof List<?> l && l.size() <= 6 && hasPokemon(l) && o.getClass().getSimpleName().contains("Party")) {
+                    partyPath = o.getClass().getSimpleName() + "." + f.getName();
+                    return l;
+                }
+                if (v.getClass().getName().startsWith("com.cobblemon")) {
+                    List<?> r = searchParty(v, depth + 1, seen);
+                    if (r != null) return r;
+                }
+            }
+        }
+        return null;
     }
 
     public static int selectedSlot() {
@@ -107,7 +156,22 @@ public final class CobbleBridge {
         List<?> slots = partySlots();
         for (int i = 0; i < slots.size() && i < 6; i++) {
             Object p = slots.get(i);
-            arr.add(p == null ? JsonNull.INSTANCE : pokemonJson(p, false));
+            if (p == null) {
+                arr.add(JsonNull.INSTANCE);
+                continue;
+            }
+            try {
+                arr.add(pokemonJson(p, false));
+            } catch (Throwable t) {
+                reportError("pokemon " + i, t);
+                JsonObject min = new JsonObject();     // still show the slot, with whatever we can read
+                min.addProperty("name", speciesName(p));
+                min.addProperty("level", R.i(R.get(p, "level"), 0));
+                min.addProperty("hp", R.i(R.get(p, "currentHealth"), 1));
+                min.addProperty("maxHp", R.i(R.get(p, "maxHealth", "hp"), 1));
+                min.addProperty("uuid", String.valueOf(R.get(p, "uuid")));
+                arr.add(min);
+            }
         }
         return arr;
     }
@@ -380,15 +444,31 @@ public final class CobbleBridge {
         return arr;
     }
 
+    /** Opens Cobblemon's own summary screen (same as pressing C), which then shows on the bottom screen. */
     public static void openSummary(int slot) {
-        setSelectedSlot(slot);
-        KeyTools.tap(KeyTools.findLike("cobblemon", "summary"));
+        if (slot >= 0) setSelectedSlot(slot);
+        net.minecraft.client.option.KeyBinding k = KeyTools.findLike("cobblemon", "summary");
+        if (k == null) k = KeyTools.findLike("summary");
+        if (k == null) k = KeyTools.boundTo("key.keyboard.c");
+        KeyTools.tap(k);
     }
 
     public static JsonElement summaryJson(int slot) {
         List<?> slots = partySlots();
-        if (slot < 0 || slot >= slots.size() || slots.get(slot) == null) return JsonNull.INSTANCE;
-        return pokemonJson(slots.get(slot), true);
+        if (slot < 0 || slot >= slots.size() || slots.get(slot) == null) {
+            JsonObject none = new JsonObject();
+            none.addProperty("missing", true);
+            return none;
+        }
+        try {
+            return pokemonJson(slots.get(slot), true);
+        } catch (Throwable t) {
+            reportError("summary", t);
+            JsonObject err = new JsonObject();
+            err.addProperty("missing", true);
+            err.addProperty("error", String.valueOf(t));
+            return err;
+        }
     }
 
     static boolean sendToServer(Object packet) {
@@ -420,6 +500,12 @@ public final class CobbleBridge {
         o.addProperty("client", client() != null);
         o.addProperty("storage", storage() != null);
         o.addProperty("partySize", partySlots().size());
+        o.addProperty("partyPath", partyPath);
+        Object st = storage();
+        if (st != null) {
+            o.addProperty("storageClass", st.getClass().getName());
+            o.add("storageMembers", members(st));
+        }
         Object battle = battle();
         o.addProperty("battle", battle != null);
         if (battle != null) {

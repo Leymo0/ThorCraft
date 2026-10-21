@@ -646,13 +646,15 @@ VIEWS.party = (main, st) => {
       ${p.shiny ? '<span class="star">✦</span>' : ''}</div>`);
   }
   const sel = party[cb.selected];
+  const noneFound = !party.some(Boolean);
   setHTML(main, `<div class="party">${cards.join('')}</div>
     <div class="grid g3" style="margin-top:var(--gap)">
       <button class="btn primary" data-tap="sendout">${sel ? 'Send / recall' : 'Send out'}</button>
-      <button class="btn" data-tap="pksum:${cb.selected}">Summary</button>
+      <button class="btn" data-tap="sumgame:${cb.selected}">Summary</button>
       <button class="btn" data-tap="pokedex">Pokédex</button>
     </div>
-    <p class="muted" style="font-size:.72rem;margin:.5rem .1rem">Tap to select · hold for the summary.</p>
+    ${noneFound ? `<p class="muted" style="font-size:.72rem;margin:.5rem .1rem">Party not showing? It's still loading, or ThorCraft couldn't read it — More → Debug shows why. Summary (C) still works.</p>`
+      : '<p class="muted" style="font-size:.72rem;margin:.5rem .1rem">Tap to select · hold for a quick view · Summary opens Cobblemon\'s own screen below.</p>'}
     <div class="h">Interact (battle · trade · team up · spectate)</div>
     ${(cb.nearby || []).length ? (cb.nearby || []).map(n => `<div class="li ${n.reach ? '' : 'no'}" data-tap="interact:${n.uuid}">
         <div class="pic">${n.kind === 'player' ? gi('minecraft:player_head') : icon(n.icon)}</div>
@@ -679,11 +681,16 @@ function openSummary(slot) {
   S.tab = 'party';
   S.dismissed = ctxSig();
   schedule();
-  fetch('/api/summary?slot=' + slot).then(r => r.json()).then(d => { if (S.summary && S.summary.slot === slot) { S.summary.data = d; $('#main')._html = null; schedule(); } }).catch(() => { });
+  const fail = () => { if (S.summary && S.summary.slot === slot && !S.summary.data) { S.summary.data = { missing: true }; $('#main')._html = null; schedule(); } };
+  setTimeout(fail, 4000);
+  fetch('/api/summary?slot=' + slot).then(r => r.json()).then(d => { if (S.summary && S.summary.slot === slot) { S.summary.data = d || { missing: true }; $('#main')._html = null; schedule(); } }).catch(fail);
 }
 function renderSummary(main) {
   const sm = S.summary, d = sm.data;
   if (!d) return setHTML(main, '<div class="waiting dots">Loading summary</div>');
+  if (d.missing) return setHTML(main, `<div class="empty-state"><p>Couldn't read this Pokémon's details.</p>
+    <button class="btn primary" data-tap="sumgame:${sm.slot}">Open Cobblemon's summary (C)</button>
+    <p><button class="btn small" data-tap="sumclose">Back to party</button></p></div>`);
   const types = (d.types || []).map(typeBadge).join(' ');
   let body = '';
   if (sm.tab === 'info') {
@@ -1036,7 +1043,7 @@ function act(a, hold) {
       for (let n = 0; n < 6; n++) { i = (i + (+arg) + 6) % 6; if (party[i]) break; }
       openSummary(i); break;
     }
-    case 'sumgame': cmd({ t: 'party', op: 'summary', slot: +arg }); break;
+    case 'sumgame': cmd({ t: 'party', op: 'summary', slot: +arg }); S.summary = null; S.dismissed = null; buzz(12); break;
     case 'bt': {
       const [op, idx] = arg.split(':');
       cmd({ t: 'battle', op, index: idx != null ? +idx : 0 }); buzz(18);
