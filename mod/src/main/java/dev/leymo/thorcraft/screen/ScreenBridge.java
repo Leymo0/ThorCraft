@@ -151,6 +151,17 @@ public final class ScreenBridge {
         // Server resource packs often paint a custom background over the menu using a special font
         // or private-use glyphs in the title. Those menus only look right as a picture.
         o.addProperty("painted", isPainted(hs.getTitle()));
+        // Where the menu sits on screen (fractions), so its picture can be cropped to just the menu.
+        // Extra room above/around for art that servers draw outside the normal chest box.
+        float sw = Math.max(1, hs.width), sh = Math.max(1, hs.height);
+        int gx = acc.thorcraft$getX(), gy = acc.thorcraft$getY();
+        int gw = acc.thorcraft$getBackgroundWidth(), gh = acc.thorcraft$getBackgroundHeight();
+        JsonArray rect = new JsonArray();
+        rect.add(Math.max(0f, (gx - 14) / sw));
+        rect.add(Math.max(0f, (gy - 28) / sh));
+        rect.add(Math.min(1f, (gx + gw + 14) / sw));
+        rect.add(Math.min(1f, (gy + gh + 10) / sh));
+        o.add("guiRect", rect);
     }
 
     /** True if the title uses a non-default font or private-use / negative-space glyphs (resource-pack GUI art). */
@@ -336,7 +347,11 @@ public final class ScreenBridge {
         if (ThorCraft.SERVER == null || ThorCraft.SERVER.clientCount() == 0) return false;
         if (sc instanceof CreativeInventoryScreen) return false;
         if (sc instanceof AnvilScreen) return false; // keep the text box visible
-        return sc instanceof HandledScreen<?>;
+        if (!(sc instanceof HandledScreen<?>)) return false;
+        // Never hide a menu the panel is showing as a picture (the picture IS the top screen),
+        // nor server menus with resource-pack art.
+        if (dev.leymo.thorcraft.render.MirrorCapture.active()) return false;
+        return !isPainted(sc.getTitle());
     }
 
     public static void drawTopHint(DrawContext ctx, Screen sc) {

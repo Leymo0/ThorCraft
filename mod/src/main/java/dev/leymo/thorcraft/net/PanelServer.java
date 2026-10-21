@@ -179,12 +179,15 @@ public final class PanelServer {
             switch (path) {
                 case "/ping" -> sendText(out, 200, "text/plain", "thorcraft " + (CobbleBridge.present() ? "cobblemon" : "vanilla"));
                 case "/mirror.png" -> {
-                    float crop = 1f;
+                    float[] rc = {0f, 0f, 1f, 1f};
                     try {
-                        if (params.containsKey("crop")) crop = Float.parseFloat(params.get("crop"));
+                        if (params.containsKey("rect")) {
+                            String[] p4 = params.get("rect").split(",");
+                            for (int i = 0; i < 4 && i < p4.length; i++) rc[i] = Float.parseFloat(p4[i]);
+                        }
                     } catch (NumberFormatException ignored) {
                     }
-                    MirrorCapture.request(crop);
+                    MirrorCapture.request(rc[0], rc[1], rc[2], rc[3]);
                     byte[] png = MirrorCapture.latest();
                     if (png == null) send(out, 404, "text/plain", new byte[0], "");
                     else send(out, 200, "image/png", png, "");

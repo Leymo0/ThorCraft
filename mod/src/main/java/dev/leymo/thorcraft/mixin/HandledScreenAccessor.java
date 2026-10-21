@@ -11,4 +11,10 @@ public interface HandledScreenAccessor {
 
     @Accessor("backgroundHeight")
     int thorcraft$getBackgroundHeight();
+
+    @Accessor("x")
+    int thorcraft$getX();
+
+    @Accessor("y")
+    int thorcraft$getY();
 }

@@ -97,7 +97,7 @@ function state() {
   switch (scenario) {
     case 'chest': base.screen = sc({ kind: 'container', title: [{ t: 'Chest' }], syncId: 3, bgW: 176, bgH: 166, rows: 3, slots: chestSlots(), cursor: null, menu: false }); break;
     case 'editserver': base.inWorld = false; base.screen = sc({ kind: 'mirror', title: [{ t: 'Edit Server Info' }], typing: true, focusText: FIELD.text, focusId: 77, widgets: [{ i: 0, label: 'Done', a: true, type: 'button' }] }); break;
-    case 'painted': base.screen = sc({ kind: 'container', title: [{ t: '\uE001\uE002 Shop' }], syncId: 9, bgW: 176, bgH: 166, rows: 3, slots: menuSlots(), cursor: null, menu: true, painted: true }); break;
+    case 'painted': base.screen = sc({ kind: 'container', title: [{ t: '\uE001\uE002\uE003 RECENT \uE004$1,400\uE005\uE006' }], guiRect: [0.29, 0.12, 0.71, 0.88], syncId: 9, bgW: 176, bgH: 166, rows: 3, slots: menuSlots(), cursor: null, menu: true, painted: true }); break;
     case 'menu': base.screen = sc({ kind: 'container', title: [{ t: '✦ ', c: '#FFAA00' }, { t: 'Server Menu', c: '#FFAA00', b: 1 }], syncId: 4, bgW: 176, bgH: 166, rows: 3, slots: menuSlots(), cursor: null, menu: true }); break;
     case 'mirror': base.screen = sc({ kind: 'mirror', title: [{ t: 'PC' }], widgets: [{ i: 0, label: 'Done', a: true, type: 'button' }, { i: 1, label: 'Box 1', a: true, type: 'button' }, { i: 2, label: 'Search', a: true, type: 'text', value: '' }], typing: true }); break;
     default:
@@ -129,7 +129,7 @@ http.createServer((req, res) => {
   if (u.pathname.startsWith('/itemicon/')) { res.writeHead(302, { Location: '/icon/' + u.pathname.slice(10) }); res.end(); return; }
   if (u.pathname.startsWith('/tex/')) { res.writeHead(200, { 'Content-Type': 'image/png' }); res.end(u.pathname.includes('dirt') ? png(134, 96, 67) : u.pathname.includes('oak_planks') ? png(168, 132, 80) : png(220, 40, 40)); return; }
   if (u.pathname.startsWith('/icon/')) { res.writeHead(200, { 'Content-Type': 'image/png' }); res.end(iconFor(u.pathname)); return; }
-  if (u.pathname === '/mirror.png') { res.writeHead(200, { 'Content-Type': 'image/png' }); res.end(png(40, 60, 90)); return; }
+  if (u.pathname === '/mirror.png') { console.log('MIRROR', u.searchParams.get('rect')); res.writeHead(200, { 'Content-Type': 'image/png' }); res.end(png(40, 60, 90)); return; }
   if (u.pathname === '/api/chat') { res.end(JSON.stringify([{ id: 1, k: 'chat', s: [{ t: '<Key> ' }, { t: 'shiny gardevoir?? no way' }] }, { id: 2, k: 'game', s: [{ t: '[Server] ', c: '#FFAA00' }, { t: 'Welcome to Cobbleverse!' }] }])); return; }
   if (u.pathname === '/api/keys') { res.end(JSON.stringify([{ id: 'key.inventory', name: 'Open/Close Inventory', cat: 'Inventory', bound: 'E' }, { id: 'key.cobblemon.throwpartypokemon', name: 'Throw Party Pokémon', cat: 'Cobblemon', bound: 'R' }, { id: 'key.xaero_open_map', name: "Open World Map", cat: "Xaero's World Map", bound: 'M' }])); return; }
   if (u.pathname === '/api/summary') {

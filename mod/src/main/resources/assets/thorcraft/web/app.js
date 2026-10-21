@@ -31,6 +31,16 @@ function segs(arr, fallback = '') {
     return st ? `<span class="seg" style="${st}">${esc(s.t)}</span>` : esc(s.t);
   }).join('');
 }
+/** Remove resource-pack art characters (private-use glyphs, used by servers to paint menus) from a title. */
+function cleanTitle(arr) {
+  const out = [];
+  for (const sg of arr || []) {
+    const t = sg.t.replace(/[\uE000-\uF8FF]|[\uDB80-\uDBFF][\uDC00-\uDFFF]/g, ' ').replace(/\s{2,}/g, ' ');
+    if (t.trim()) out.push(Object.assign({}, sg, { t }));
+  }
+  if (out.length) { out[0].t = out[0].t.replace(/^\s+/, ''); out[out.length - 1].t = out[out.length - 1].t.replace(/\s+$/, ''); }
+  return out;
+}
 const plain = arr => (arr || []).map(s => s.t).join('');
 function imgTag(src, cls = '') {
   return `<img class="${cls}" src="${src}" data-src="${src}" onerror="iconErr(this)" draggable="false" alt="">`;
@@ -210,7 +220,10 @@ function renderHeader(view) {
   const st = S.st;
   const ctx = gameContext();
   let title = 'ThorCraft';
-  if (st && st.screen && st.screen.title && st.screen.title.length && (view === 'container' || view === 'mirror')) title = segs(st.screen.title);
+  if (st && st.screen && st.screen.title && st.screen.title.length && (view === 'container' || view === 'mirror')) {
+    const clean = cleanTitle(st.screen.title);
+    title = clean.length ? segs(clean) : 'Menu';
+  }
   else if (view === 'battle') title = st.cobble.battle.wild ? 'Wild battle' : 'Battle';
   else { const t = TABS.find(t => t.id === view); if (t) title = esc(t.name); }
   setHTML($('#title'), title);
@@ -415,7 +428,9 @@ function startMirror(img) {
       const next = new Image();
       next.onload = () => { if (mirrorImg) { mirrorImg.src = next.src; const w = mirrorImg.parentNode && mirrorImg.parentNode.querySelector('.wait'); if (w) w.remove(); } loop(); };
       next.onerror = () => setTimeout(loop, 300);
-      next.src = '/mirror.png?crop=' + mirrorCrop() + '&t=' + mirrorLast;
+      next.src = '/mirror.png?rect=' + mirrorRect().map(v => (+v).toFixed(4)).join(',') + '&t=' + mirrorLast;
+      const w = document.getElementById('mirror');
+      if (w) w.style.aspectRatio = mirrorAspect().toFixed(3);
     }, wait);
   };
   loop();
@@ -426,8 +441,21 @@ function mirrorCrop() {
   const sc = S.st && S.st.screen;
   return S.mirrorZoom || (sc && sc.zoom) || 1;
 }
-function mirrorHTML(aspect) {
-  return `<div class="mirror-wrap" id="mirror" style="aspect-ratio:${aspect || 16 / 9}"><img alt=""><div class="wait dots">Loading picture</div></div>`;
+/** Which part of the top screen the picture shows: [left, top, right, bottom] as 0..1. */
+function mirrorRect() {
+  const sc = (S.st && S.st.screen) || {};
+  if (S.mirrorZoom && S.mirrorZoom < 1) { const c = S.mirrorZoom; return [0.5 - c / 2, 0.5 - c / 2, 0.5 + c / 2, 0.5 + c / 2]; }
+  if (sc.kind === 'container' && sc.guiRect && !S.mirrorFull) return sc.guiRect;   // just the menu, no side mods / world
+  if (sc.zoom && sc.zoom < 1) { const c = sc.zoom; return [0.5 - c / 2, 0.5 - c / 2, 0.5 + c / 2, 0.5 + c / 2]; }
+  return [0, 0, 1, 1];
+}
+function mirrorAspect() {
+  const sc = (S.st && S.st.screen) || {};
+  const r = mirrorRect();
+  return ((r[2] - r[0]) * (sc.aspect || 16 / 9)) / Math.max(0.01, r[3] - r[1]);
+}
+function mirrorHTML() {
+  return `<div class="mirror-wrap" id="mirror" style="aspect-ratio:${mirrorAspect().toFixed(3)}"><img alt=""><div class="wait dots">Loading picture</div></div>`;
 }
 function bindMirror(root) {
   const wrap = $('#mirror', root);
@@ -437,9 +465,9 @@ function bindMirror(root) {
   let down = false, lastMove = 0, startY = 0, scrolled = false;
   // touch position on the (possibly zoomed) picture -> position on the full top screen
   const pos = e => {
-    const r = wrap.getBoundingClientRect(), c = mirrorCrop();
+    const r = wrap.getBoundingClientRect(), m = mirrorRect();
     const nx = clamp((e.clientX - r.left) / r.width, 0, 1), ny = clamp((e.clientY - r.top) / r.height, 0, 1);
-    return { x: 0.5 + (nx - 0.5) * c, y: 0.5 + (ny - 0.5) * c };
+    return { x: m[0] + nx * (m[2] - m[0]), y: m[1] + ny * (m[3] - m[1]) };
   };
   wrap.addEventListener('pointerdown', e => {
     e.preventDefault();
@@ -471,11 +499,13 @@ VIEWS.mirror = (main, st) => {
   const sc = st.screen || {};
   const widgets = sc.widgets || [];
   const typing = sc.typing;
-  layout(main, 'mirror:' + Math.round((sc.aspect || 1.78) * 100), `${mirrorHTML(sc.aspect)}<div id="mctl"></div>`);
+  layout(main, 'mirror', `${mirrorHTML()}<div id="mctl"></div>`);
   const h = `<div class="row" style="margin-top:var(--gap)">
       <button class="btn small grow" data-tap="scroll:1">▲ Scroll</button>
       <button class="btn small grow" data-tap="scroll:-1">▼ Scroll</button>
-      <button class="btn small grow ${mirrorCrop() < 1 ? 'on' : ''}" data-tap="mzoom:${mirrorCrop() < 1 ? 1 : 0.55}">${mirrorCrop() < 1 ? 'Zoom out' : 'Zoom in'}</button>
+      ${sc.kind === 'container' && sc.guiRect
+        ? `<button class="btn small grow" data-tap="mfull">${S.mirrorFull ? 'Menu only' : 'Full screen'}</button>`
+        : `<button class="btn small grow ${mirrorCrop() < 1 ? 'on' : ''}" data-tap="mzoom:${mirrorCrop() < 1 ? 1 : 0.55}">${mirrorCrop() < 1 ? 'Zoom out' : 'Zoom in'}</button>`}
       ${sc.kind === 'container' ? '<button class="btn small grow" data-tap="mirror:off">Slots</button>' : ''}
       ${widgets.length ? `<button class="btn small grow ${S.showWidgets ? 'on' : ''}" data-tap="widgets">Buttons (${widgets.length})</button>` : ''}
     </div>
@@ -828,7 +858,7 @@ VIEWS.battle = (main, st) => {
   const lines = (b.log || []).slice(-30);
   if (setHTML(logEl, lines.length ? lines.map(l => `<div class="ll">${logLine(l, foes, allies)}</div>`).join('')
       : '<div class="ll muted">The battle log will appear here.</div>')) logEl.scrollTop = logEl.scrollHeight;
-  setHTML($('#bmir', main), showMirror ? `<div class="h">Battle screen — tap it like the top screen</div>${mirrorHTML(st.screen && st.screen.aspect)}` : '');
+  setHTML($('#bmir', main), showMirror ? `<div class="h">Battle screen — tap it like the top screen</div>${mirrorHTML()}` : '');
   if (showMirror) bindMirror(main); else stopMirror();
 };
 /** Battle log line: keep Cobblemon's own colours, and highlight names / effectiveness / crits / faints in plain text. */
@@ -986,6 +1016,7 @@ function act(a, hold) {
     case 'interact': cmd({ t: 'party', op: 'interact', uuid: arg }); buzz(15); toast('Opening the interaction wheel…'); break;
     case 'interactLook': cmd({ t: 'party', op: 'interactLook' }); buzz(15); break;
     case 'mzoom': S.mirrorZoom = +arg; break;
+    case 'mfull': S.mirrorFull = !S.mirrorFull; break;
     case 'theme': S.settings.theme = arg; saveSettings(); buzz(15); break;
     case 'padlayout': S.settings.padLayout = arg; saveSettings(); break;
     case 'blogsize': { const el = $('#blog'); if (el) { el.classList.toggle('big'); el.scrollTop = el.scrollHeight; } return; }
@@ -999,7 +1030,7 @@ function act(a, hold) {
       store.set('pins', S.pins); buzz(25); break;
     }
     case 'unpin': S.pins = S.pins.filter(p => p.id !== arg); store.set('pins', S.pins); buzz(25); break;
-    case 'screen': if (arg === 'close') cmd({ t: 'close' }); S.viewChoice = null; S.picked = null; S.mirrorZoom = 0; break;
+    case 'screen': if (arg === 'close') cmd({ t: 'close' }); S.viewChoice = null; S.picked = null; S.mirrorZoom = 0; S.mirrorFull = false; break;
     case 'slot': slotTap(+arg, false); break;
     case 'slothold': slotTap(+arg, true); break;
     case 'clickslot': { const [id, btn, ac] = arg.split(':'); cmd({ t: 'click', slot: +id, button: +btn, act: ac }); buzz(15); break; }

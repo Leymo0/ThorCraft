@@ -32,12 +32,23 @@ public final class MirrorCapture {
         return t;
     });
 
-    /** Fraction of the screen to show, centred (1 = whole screen, 0.5 = 2x zoom on the middle). */
-    private static volatile float crop = 1f;
+    /** Part of the screen to show, as fractions 0..1 (left, top, right, bottom). */
+    private static volatile float[] rect = {0f, 0f, 1f, 1f};
 
-    public static void request(float zoomCrop) {
-        crop = Math.max(0.25f, Math.min(1f, zoomCrop));
+    public static void request(float x0, float y0, float x1, float y1) {
+        x0 = clamp01(x0); y0 = clamp01(y0); x1 = clamp01(x1); y1 = clamp01(y1);
+        if (x1 - x0 < 0.05f || y1 - y0 < 0.05f) { x0 = 0; y0 = 0; x1 = 1; y1 = 1; }
+        rect = new float[]{x0, y0, x1, y1};
         wantedUntil = System.currentTimeMillis() + 1500;
+    }
+
+    /** True while the panel is showing the live picture. */
+    public static boolean active() {
+        return System.currentTimeMillis() < wantedUntil;
+    }
+
+    private static float clamp01(float v) {
+        return Math.max(0f, Math.min(1f, v));
     }
 
     public static byte[] latest() {
@@ -57,8 +68,13 @@ public final class MirrorCapture {
         Framebuffer main = mc.getFramebuffer();
         int mw = main.textureWidth, mh = main.textureHeight;
         if (mw <= 0 || mh <= 0) return;
-        int sw = Math.min(ThorCraft.CONFIG.mirrorWidth, mw);
-        int sh = Math.max(1, Math.round((float) sw * mh / mw));
+        float[] r = rect;
+        // GL framebuffers start at the bottom-left, the panel's rectangle at the top-left
+        int sx0 = Math.round(r[0] * mw), sx1 = Math.round(r[2] * mw);
+        int sy0 = Math.round((1f - r[3]) * mh), sy1 = Math.round((1f - r[1]) * mh);
+        int cw = Math.max(1, sx1 - sx0), ch = Math.max(1, sy1 - sy0);
+        int sw = Math.min(ThorCraft.CONFIG.mirrorWidth, cw);
+        int sh = Math.max(1, Math.round((float) sw * ch / cw));
         if (small == null || small.textureWidth != sw || small.textureHeight != sh) {
             if (small != null) small.delete();
             small = new SimpleFramebuffer(sw, sh, false, MinecraftClient.IS_SYSTEM_MAC);
@@ -66,8 +82,7 @@ public final class MirrorCapture {
 
         GlStateManager._glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, main.fbo);
         GlStateManager._glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, small.fbo);
-        int cx0 = Math.round(mw * (1f - crop) / 2f), cy0 = Math.round(mh * (1f - crop) / 2f);
-        GlStateManager._glBlitFrameBuffer(cx0, cy0, mw - cx0, mh - cy0, 0, 0, sw, sh, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_LINEAR);
+        GlStateManager._glBlitFrameBuffer(sx0, sy0, sx1, sy1, 0, 0, sw, sh, GL11.GL_COLOR_BUFFER_BIT, GL11.GL_LINEAR);
         GlStateManager._glBindFramebuffer(GL30.GL_FRAMEBUFFER, main.fbo);
         main.beginWrite(true);
 
