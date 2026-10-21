@@ -35,6 +35,15 @@ Every push builds both files automatically. Grab the newest from the repo's **Re
 - `ThorCraft-Panel.apk` → install on the Thor
 - `thorcraft-*.jar` → put in your Cobbleverse **mods** folder
 
+### The ThorCraft Panel app is your hub
+Open **ThorCraft Panel** before playing:
+- **▶ Play** opens Zalith Launcher on the top screen (and starts the bottom-screen panel).
+- **Mod (JAR)** shows the newest build. Choose your game folder once, pick a profile, and tap
+  **Install / Update** — the old ThorCraft jar in that profile is replaced. Each profile shows which build it has.
+  (Zalith's default folder is inside Android/data, which Android locks for other apps — set a custom game
+  folder in Zalith's settings to use this; otherwise the JAR is saved to Downloads/ThorCraft.)
+- **This app** updates itself from GitHub when a newer build exists.
+
 ## 2b. Build it yourself
 
 **Mod** (PC, JDK 21):
