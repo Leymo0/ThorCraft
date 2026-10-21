@@ -115,6 +115,8 @@ class PanelService : Service() {
             PixelFormat.OPAQUE
         )
         lp.title = "ThorCraft Panel"
+        // When the keyboard opens, shrink the panel to the space above it (so the typing bar stays visible)
+        lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         if (Build.VERSION.SDK_INT >= 28) {
             lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }

@@ -78,6 +78,9 @@ UI work without Minecraft: `node mod/panel-mock-server.js mod/src/main/resources
 - **Server menus with custom art:** when a server's resource pack paints a background over a chest menu
   (special font / private-use glyphs in the title), it opens as the live picture automatically so it looks
   exactly like the top screen. Tap **Slots** to switch to tappable slots (toggle in More).
+- **Typing (server address, signs, search boxes…):** tap the box on the picture, then **⌨ Type**. A bar
+  floats right above the keyboard showing what's in the game's box; every key goes to the game live
+  (✓ in game = synced). ↵ presses Enter, Done closes the keyboard.
 - **Everything else** (Cobblemon PC, Pokédex, mod settings, the title screen…) shows as a **live picture you
   can touch**, with scroll buttons, a keyboard bar for text boxes, and a list of the screen's buttons.
 

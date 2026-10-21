@@ -119,6 +119,7 @@ function connect() {
     lastMsg = Date.now();
     S.st = JSON.parse(e.data);
     setConnected(true);
+    if (KB.open) kbSync(S.st.screen);
     schedule();
   });
   es.addEventListener('chat', e => {
@@ -478,24 +479,101 @@ VIEWS.mirror = (main, st) => {
       ${sc.kind === 'container' ? '<button class="btn small grow" data-tap="mirror:off">Slots</button>' : ''}
       ${widgets.length ? `<button class="btn small grow ${S.showWidgets ? 'on' : ''}" data-tap="widgets">Buttons (${widgets.length})</button>` : ''}
     </div>
-    ${typing ? typeBar() : ''}
+    ${typing ? `<button class="btn primary" style="width:100%;margin-top:var(--gap)" data-tap="kbopen">⌨ Type${sc.focusText != null ? ' into this box' : ''}</button>` : ''}
     ${S.showWidgets && widgets.length ? `<div class="wlist" style="margin-top:var(--gap)">${widgets.map(w =>
       `<button class="btn" ${w.a ? '' : 'disabled'} data-tap="widget:${w.i}">${w.type === 'check' ? (w.checked ? '☑ ' : '☐ ') : ''}${esc(w.type === 'text' ? '✎ ' + (w.value || w.label || 'Text') : w.label || '•')}</button>`).join('')}</div>` : ''}
     <p class="muted" style="font-size:.7rem;margin:.5rem .1rem">Touch the picture just like the top screen: tap, drag, and use the scroll buttons for lists.</p>`;
   setHTML($('#mctl', main), h);
   bindMirror(main);
-  bindTypeBar(main);
+  kbSync(sc);
 };
 
-function typeBar() {
-  return `<div class="chatin" style="position:static"><input id="typein" placeholder="Type here…" autocomplete="off" autocapitalize="off"><button class="btn small" data-tap="typekey:backspace">⌫</button><button class="btn small primary" data-tap="typesend">↵</button></div>`;
-}
-function bindTypeBar(root) {
-  const inp = $('#typein', root);
-  if (!inp || inp._bound) return;
-  inp._bound = true;
+/* ---------- Live typing bar (floats right above the Android keyboard) ----------
+   Every keystroke goes to the game at once. For normal text boxes the whole text is mirrored exactly
+   (so you can also fix/delete what's already there); for signs/books we send the difference. */
+const KB = { el: null, open: false, sent: '', fieldId: null, lastEdit: 0 };
+function kbEnsure() {
+  if (KB.el) return KB.el;
+  const el = document.createElement('div');
+  el.id = 'kb';
+  el.className = 'kb hidden';
+  el.innerHTML = `<div class="kb-top"><span class="kb-label">On screen</span><span class="kb-sync" id="kbsync"></span><span class="grow"></span><button class="btn small" data-tap="kbdone">Done ✓</button></div>
+    <div class="kb-preview mono" id="kbprev"></div>
+    <div class="kb-row"><input id="kbin" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter">
+      <button class="btn small" data-tap="kbkey:backspace">⌫</button><button class="btn small primary" data-tap="kbenter">↵</button></div>`;
+  document.body.appendChild(el);
+  KB.el = el;
+  const inp = el.querySelector('#kbin');
   keyboardFocus(inp);
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); act('typesend'); } });
+  inp.addEventListener('input', () => kbInput(inp.value));
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); act('kbenter'); } });
+  const place = () => {
+    const vv = window.visualViewport;
+    const hidden = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+    el.style.bottom = hidden + 'px';
+  };
+  if (window.visualViewport) { visualViewport.addEventListener('resize', place); visualViewport.addEventListener('scroll', place); }
+  window.addEventListener('resize', place);
+  place();
+  return el;
+}
+function kbOpen() {
+  const el = kbEnsure();
+  const sc = (S.st && S.st.screen) || {};
+  const inp = el.querySelector('#kbin');
+  KB.fieldId = sc.focusId ?? null;
+  inp.value = sc.focusText ?? '';
+  KB.sent = inp.value;
+  el.classList.remove('hidden');
+  KB.open = true;
+  kbPreview();
+  setTimeout(() => { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }, 30);
+}
+function kbClose() {
+  if (!KB.el) return;
+  KB.el.classList.add('hidden');
+  KB.open = false;
+  const inp = KB.el.querySelector('#kbin');
+  inp.blur();
+  if (Thor && Thor.setKeyboard) Thor.setKeyboard(false);
+}
+function kbInput(value) {
+  KB.lastEdit = Date.now();
+  const sc = (S.st && S.st.screen) || {};
+  if (sc.focusText != null) {
+    cmd({ t: 'settext', text: value });           // exact mirror of the box
+  } else {
+    let p = 0;                                     // signs, books…: send only the change
+    while (p < KB.sent.length && p < value.length && KB.sent[p] === value[p]) p++;
+    for (let i = 0; i < KB.sent.length - p; i++) cmd({ t: 'press', key: 'backspace' });
+    if (value.length > p) cmd({ t: 'type', text: value.slice(p) });
+  }
+  KB.sent = value;
+  kbPreview();
+}
+function kbPreview() {
+  if (!KB.el) return;
+  const sc = (S.st && S.st.screen) || {};
+  const inp = KB.el.querySelector('#kbin');
+  const shown = sc.focusText != null ? sc.focusText : inp.value;
+  const synced = sc.focusText == null || sc.focusText === inp.value;
+  setHTML(KB.el.querySelector('#kbprev'), (esc(shown) || '<span class="muted">empty</span>') + '<span class="kb-caret"></span>');
+  setHTML(KB.el.querySelector('#kbsync'), sc.focusText == null ? '' : synced ? '✓ in game' : '…');
+}
+/** Keep the bar in step with the game: close it when typing ends, follow when you pick another box. */
+function kbSync(sc) {
+  if (!KB.open) return;
+  if (!sc || !sc.typing) { kbClose(); return; }
+  const inp = KB.el.querySelector('#kbin');
+  if ((sc.focusId ?? null) !== KB.fieldId) {
+    KB.fieldId = sc.focusId ?? null;
+    inp.value = sc.focusText ?? '';
+    KB.sent = inp.value;
+  } else if (sc.focusText != null && sc.focusText !== inp.value && Date.now() - KB.lastEdit > 1200) {
+    inp.value = sc.focusText;      // the game changed it (e.g. max length, autocomplete)
+    KB.sent = inp.value;
+  }
+  kbPreview();
 }
 function keyboardFocus(inp) {
   inp.addEventListener('focus', () => { if (Thor && Thor.setKeyboard) Thor.setKeyboard(true); });
@@ -924,12 +1002,13 @@ function act(a, hold) {
     case 'widgets': S.showWidgets = !S.showWidgets; break;
     case 'widget': cmd({ t: 'widget', i: +arg }); buzz(12); break;
     case 'scroll': cmd({ t: 'touch', kind: 'scroll', x: 0.5, y: 0.5, amount: +arg }); break;
-    case 'typekey': cmd({ t: 'press', key: arg }); break;
-    case 'typesend': {
-      const inp = $('#typein');
-      if (inp && inp.value) { cmd({ t: 'type', text: inp.value }); inp.value = ''; }
-      else cmd({ t: 'press', key: 'enter' });
-      break;
+    case 'kbopen': kbOpen(); return;
+    case 'kbdone': kbClose(); return;
+    case 'kbenter': cmd({ t: 'press', key: 'enter' }); buzz(12); return;
+    case 'kbkey': {
+      const inp = KB.el && KB.el.querySelector('#kbin');
+      if (inp && arg === 'backspace') { inp.value = inp.value.slice(0, -1); kbInput(inp.value); inp.focus(); }
+      return;
     }
     case 'chatsend': {
       const inp = $('#chatin');

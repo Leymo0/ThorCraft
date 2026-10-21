@@ -67,6 +67,12 @@ public final class ScreenBridge {
         o.addProperty("cls", sc.getClass().getName());
         o.add("title", TextJson.segs(sc.getTitle()));
         o.addProperty("typing", acceptsTyping(sc));
+        TextFieldWidget field = focusedField(sc);
+        if (field != null) {
+            // what is actually in the game's text box right now (shown live above the Android keyboard)
+            o.addProperty("focusText", field.getText());
+            o.addProperty("focusId", System.identityHashCode(field));
+        }
         Window w = mc.getWindow();
         o.addProperty("aspect", (float) w.getFramebufferWidth() / Math.max(1, w.getFramebufferHeight()));
 
@@ -162,10 +168,33 @@ public final class ScreenBridge {
         return painted[0];
     }
 
+    /** The text box that currently has focus, following nested containers (lists, tabs, panels). */
+    public static TextFieldWidget focusedField(Screen sc) {
+        Element f = sc.getFocused();
+        for (int depth = 0; f != null && depth < 6; depth++) {
+            if (f instanceof TextFieldWidget tf) return tf;
+            if (f instanceof ParentElement pe) f = pe.getFocused();
+            else break;
+        }
+        return null;
+    }
+
+    /** Replace the focused text box's contents (live typing from the panel). Returns false if there's no plain text box. */
+    public static boolean setFocusedText(MinecraftClient mc, String text) {
+        Screen sc = mc.currentScreen;
+        if (sc == null || text == null) return false;
+        TextFieldWidget tf = focusedField(sc);
+        if (tf == null) return false;
+        tf.setText(text);
+        tf.setCursorToEnd(false);
+        return true;
+    }
+
     private static boolean acceptsTyping(Screen sc) {
         if (sc instanceof AbstractSignEditScreen || sc instanceof BookEditScreen || sc instanceof AnvilScreen || sc instanceof ChatScreen) return true;
+        if (focusedField(sc) != null) return true;
         Element f = sc.getFocused();
-        return f instanceof TextFieldWidget || (f != null && f.getClass().getSimpleName().toLowerCase().contains("edit"));
+        return f != null && f.getClass().getSimpleName().toLowerCase().contains("edit");
     }
 
     // --------------------------------------------------------------- widgets (buttons list for non-inventory screens)

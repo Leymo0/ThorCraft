@@ -332,3 +332,7 @@ html[data-theme="gba"] main > .row > .muted, html[data-theme="gba"] main > p.mut
 }
 html[data-theme="snes"] main > .row > .muted, html[data-theme="snes"] main > p.muted, html[data-theme="snes"] #hquick > p.muted { color: #3a3550; }
 html[data-theme="cloud"] main > .row > .muted, html[data-theme="cloud"] main > p.muted { color: #5a6a7c; }
+html[data-theme="minecraft"] .kb { background: #c6c6c6; border-top: 2px solid #000; }
+html[data-theme="minecraft"] .kb-row input { background: #000; color: #fff; border: 2px solid #a0a0a0; border-radius: 0; }
+html[data-theme="snes"] .kb-row input { background: #0c1c78; color: #fff; border: 3px solid #e8e8f0; }
+html[data-theme="dp"] .kb-row input, html[data-theme="matcha"] .kb-row input { background: #fff; color: #222; }

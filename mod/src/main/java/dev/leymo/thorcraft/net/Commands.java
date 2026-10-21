@@ -76,6 +76,7 @@ public final class Commands {
                 case "click" -> ScreenBridge.clickSlot(mc, num(j, "slot"), num(j, "button"), str(j, "act"));
                 case "widget" -> ScreenBridge.clickWidget(mc, num(j, "i"));
                 case "type" -> ScreenBridge.typeText(mc, str(j, "text"));
+                case "settext" -> ScreenBridge.setFocusedText(mc, str(j, "text"));
                 case "press" -> ScreenBridge.pressKey(mc, str(j, "key"));
                 case "touch" -> ScreenBridge.mirrorTouch(mc, str(j, "kind"), dbl(j, "x"), dbl(j, "y"), num(j, "button"), dbl(j, "amount"));
 

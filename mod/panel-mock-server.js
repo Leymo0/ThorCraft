@@ -96,6 +96,7 @@ function state() {
   const sc = (o) => Object.assign({ cls: 'x', aspect: 16 / 9, typing: false }, o);
   switch (scenario) {
     case 'chest': base.screen = sc({ kind: 'container', title: [{ t: 'Chest' }], syncId: 3, bgW: 176, bgH: 166, rows: 3, slots: chestSlots(), cursor: null, menu: false }); break;
+    case 'editserver': base.inWorld = false; base.screen = sc({ kind: 'mirror', title: [{ t: 'Edit Server Info' }], typing: true, focusText: FIELD.text, focusId: 77, widgets: [{ i: 0, label: 'Done', a: true, type: 'button' }] }); break;
     case 'painted': base.screen = sc({ kind: 'container', title: [{ t: '\uE001\uE002 Shop' }], syncId: 9, bgW: 176, bgH: 166, rows: 3, slots: menuSlots(), cursor: null, menu: true, painted: true }); break;
     case 'menu': base.screen = sc({ kind: 'container', title: [{ t: '✦ ', c: '#FFAA00' }, { t: 'Server Menu', c: '#FFAA00', b: 1 }], syncId: 4, bgW: 176, bgH: 166, rows: 3, slots: menuSlots(), cursor: null, menu: true }); break;
     case 'mirror': base.screen = sc({ kind: 'mirror', title: [{ t: 'PC' }], widgets: [{ i: 0, label: 'Done', a: true, type: 'button' }, { i: 1, label: 'Box 1', a: true, type: 'button' }, { i: 2, label: 'Search', a: true, type: 'text', value: '' }], typing: true }); break;
@@ -112,6 +113,7 @@ function state() {
   }
   return base;
 }
+const FIELD = { text: 'cobbleworld.minecraftr.us' };
 const clients = new Set();
 setInterval(() => { const d = 'event: state\ndata: ' + JSON.stringify(state()) + '\n\n'; for (const c of clients) c.write(d); }, 200);
 
@@ -123,7 +125,7 @@ http.createServer((req, res) => {
     res.write('retry: 1000\n\n');
     clients.add(res); req.on('close', () => clients.delete(res)); return;
   }
-  if (u.pathname === '/cmd') { let b = ''; req.on('data', d => b += d); req.on('end', () => { console.log('CMD', b); res.writeHead(204); res.end(); }); return; }
+  if (u.pathname === '/cmd') { let b = ''; req.on('data', d => b += d); req.on('end', () => { console.log('CMD', b); try { const c = JSON.parse(b); if (c.t === 'settext') FIELD.text = c.text; } catch (e) {} res.writeHead(204); res.end(); }); return; }
   if (u.pathname.startsWith('/itemicon/')) { res.writeHead(302, { Location: '/icon/' + u.pathname.slice(10) }); res.end(); return; }
   if (u.pathname.startsWith('/tex/')) { res.writeHead(200, { 'Content-Type': 'image/png' }); res.end(u.pathname.includes('dirt') ? png(134, 96, 67) : u.pathname.includes('oak_planks') ? png(168, 132, 80) : png(220, 40, 40)); return; }
   if (u.pathname.startsWith('/icon/')) { res.writeHead(200, { 'Content-Type': 'image/png' }); res.end(iconFor(u.pathname)); return; }
