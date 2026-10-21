@@ -111,6 +111,8 @@ public final class IconRenderer {
                     img.loadFromTextureImage(0, false);
                     img.mirrorVertically();
                     CACHE.put(job.key(), img.getBytes());
+                } catch (java.io.IOException e) {
+                    fail(e);
                 } finally {
                     img.close();
                 }
