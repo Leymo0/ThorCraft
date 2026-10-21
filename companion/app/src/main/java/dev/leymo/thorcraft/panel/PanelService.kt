@@ -183,6 +183,14 @@ class PanelService : Service() {
         @JavascriptInterface fun open(url: String) { main.post { web?.loadUrl(url) } }
 
         @JavascriptInterface fun hide() { main.post { if (!hidden) toggle() } }
+
+        @JavascriptInterface fun launchGame(): String = Updater.launchGame(this@PanelService)
+
+        @JavascriptInterface fun openHub() {
+            main.post {
+                startActivity(Intent(this@PanelService, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+        }
     }
 
     // ------------------------------------------------------------------ notification

@@ -177,7 +177,10 @@ public final class PanelServer {
             }
 
             switch (path) {
-                case "/ping" -> sendText(out, 200, "text/plain", "thorcraft " + (CobbleBridge.present() ? "cobblemon" : "vanilla"));
+                case "/ping" -> sendText(out, 200, "text/plain", "thorcraft "
+                        + net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("thorcraft")
+                            .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("?")
+                        + " " + (CobbleBridge.present() ? "cobblemon" : "vanilla"));
                 case "/mirror.png" -> {
                     float[] rc = {0f, 0f, 1f, 1f};
                     try {

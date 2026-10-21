@@ -3,7 +3,9 @@ plugins {
     id 'maven-publish'
 }
 
-version = project.mod_version
+// CI builds are numbered (build-N) so the companion app can tell which build is installed
+def runNumber = System.getenv('GITHUB_RUN_NUMBER')
+version = runNumber ? "0.1.${runNumber}" : project.mod_version
 group = project.maven_group
 
 base {

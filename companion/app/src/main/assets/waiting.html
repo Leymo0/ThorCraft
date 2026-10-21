@@ -13,6 +13,7 @@
   .blocks i:nth-child(2) { animation-delay: .15s } .blocks i:nth-child(3) { animation-delay: .3s }
   .blocks i:nth-child(4) { animation-delay: .45s } .blocks i:nth-child(5) { animation-delay: .6s } .blocks i:nth-child(6) { animation-delay: .75s }
   @keyframes pulse { 0%, 100% { background: #1f222a } 40% { background: #3ddc84 } }
+  .play { background: #5b8731; border-color: #3b5a1e; font-size: 20px; padding: 14px 40px; }
   button { margin-top: 18px; background: #1f222a; color: #eceef2; border: 1px solid #2a2e38; border-radius: 10px; padding: 10px 18px; font: inherit; font-weight: 700; }
   .tip { color: #6b7280; font-size: 12px; margin-top: 20px; max-width: 320px; }
 </style>
@@ -21,7 +22,9 @@
   <div class="logo">ThorCraft</div>
   <div class="sub" id="msg">Waiting for Minecraft…</div>
   <div class="blocks"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <button onclick="window.Thor && Thor.hide()">Hide panel</button>
+  <button class="play" onclick="if (window.Thor && Thor.launchGame) document.getElementById('msg').textContent = Thor.launchGame()">▶ Play</button>
+  <div><button onclick="window.Thor && Thor.openHub && Thor.openHub()">Mod &amp; app updates</button>
+  <button onclick="window.Thor && Thor.hide()">Hide panel</button></div>
   <div class="tip">Launch Minecraft with the ThorCraft mod on the top screen. This panel connects by itself.</div>
 <script>
   const port = (window.Thor && Thor.port && Thor.port()) || 47123;
